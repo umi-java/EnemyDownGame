@@ -26,7 +26,7 @@ public class EnemyDownCommand implements CommandExecutor, Listener {
 
   private Main main;
   private List<PlayerScore> playerScoreList = new ArrayList<>();
-  private int gameTime = 20;
+
 
   public EnemyDownCommand(Main main) {
     this.main = main;
@@ -42,13 +42,16 @@ public class EnemyDownCommand implements CommandExecutor, Listener {
      initPlayerStatus(player);
 
      Bukkit.getScheduler().runTaskTimer(main, Runnable -> {
-       if(gameTime <= 0){
+       if(nowPlayer.getGameTime() <= 0){
          Runnable.cancel();
-         player.sendMessage("ゲーム終了〜〜！");
+         player.sendTitle("ゲーム終了〜〜！",
+             nowPlayer.getPlayerName() + " 合計 " + nowPlayer.getScore() + "点！",
+             15,30,15);
+         nowPlayer.setScore(0);
          return;
        }
        world.spawnEntity(getEnemySpawnLocation(player, world), getEnemy());
-       gameTime -= 5;
+       nowPlayer.setGameTime(nowPlayer.getGameTime() - 5);
      },0,5 * 20);
    }
     return false;
@@ -67,14 +70,31 @@ public class EnemyDownCommand implements CommandExecutor, Listener {
       }
     }
   }
+
+  private PlayerScore getPlayerScore(Player player) {
+    if(playerScoreList.isEmpty()){
+      return addNewPlayer(player);
+    } else {
+      for(PlayerScore playerScore : playerScoreList){
+        if(!playerScore.getPlayerName().equals(player.getName())){
+          return addNewPlayer(player);
+        } else {
+          return playerScore;
+        }
+      }
+      return null;
+    }
+  }
   /**
    * 新規のプレイヤー情報をリストに追加します。
    * @param player　コマンドを実行したプレイヤー
+   * @return 新規プレイヤー
    */
-  private void addNewPlayer(Player player) {
+  private PlayerScore addNewPlayer(Player player) {
     PlayerScore newPlayer = new PlayerScore();
     newPlayer.setPlayerName(player.getName());
     playerScoreList.add(newPlayer);
+    return newPlayer;
   }
 
   /**
