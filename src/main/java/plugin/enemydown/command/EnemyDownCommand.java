@@ -11,7 +11,9 @@ import org.bukkit.World;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandExecutor;
 import org.bukkit.command.CommandSender;
+import org.bukkit.entity.Entity;
 import org.bukkit.entity.EntityType;
+import org.bukkit.entity.LivingEntity;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
@@ -21,51 +23,65 @@ import org.bukkit.inventory.PlayerInventory;
 import plugin.enemydown.Main;
 import plugin.enemydown.deta.PlayerScore;
 
-public class EnemyDownCommand implements CommandExecutor, Listener {
-
-
+public class EnemyDownCommand extends BaseCommand implements Listener {
   private Main main;
   private List<PlayerScore> playerScoreList = new ArrayList<>();
-
-
   public EnemyDownCommand(Main main) {
     this.main = main;
   }
 
   @Override
-  public boolean onCommand(CommandSender sender, Command command, String label, String[] args) {
-   if(sender instanceof Player player){
-     this.player = player;
-     World world = player.getWorld();
+  public boolean onExecutePlayerCommand(Player player) {
+    PlayerScore nowPlayer = getPlayerScore(player);
+    nowPlayer.setGameTime(20);
+    World world = player.getWorld();
 
-     // プレイヤーの状態を初期化する。
-     initPlayerStatus(player);
+    // プレイヤーの状態を初期化する。
+    initPlayerStatus(player);
 
-     Bukkit.getScheduler().runTaskTimer(main, Runnable -> {
-       if(nowPlayer.getGameTime() <= 0){
-         Runnable.cancel();
-         player.sendTitle("ゲーム終了〜〜！",
-             nowPlayer.getPlayerName() + " 合計 " + nowPlayer.getScore() + "点！",
-             15,30,15);
-         nowPlayer.setScore(0);
-         return;
-       }
-       world.spawnEntity(getEnemySpawnLocation(player, world), getEnemy());
-       nowPlayer.setGameTime(nowPlayer.getGameTime() - 5);
-     },0,5 * 20);
-   }
+    Bukkit.getScheduler().runTaskTimer(main, Runnable -> {
+      if(nowPlayer.getGameTime() <= 0){
+        Runnable.cancel();
+        player.sendTitle("ゲーム終了〜〜！",
+            nowPlayer.getPlayerName() + " 合計 " + nowPlayer.getScore() + "点！",
+            10,60,10);
+        nowPlayer.setScore(0);
+        List<Entity> nearbyEnemies = player.getNearbyEntities(50, 0, 50);
+        for(Entity enemy : nearbyEnemies) {
+          switch (enemy.getType()) {
+            case ZOMBIE, SPIDER, SKELETON, WITCH -> enemy.remove();
+          }
+        }
+        return;
+      }
+      world.spawnEntity(getEnemySpawnLocation(player, world), getEnemy());
+      nowPlayer.setGameTime(nowPlayer.getGameTime() - 5);
+    },0,5 * 20);
+    return true;
+  }
+
+  @Override
+  public boolean onExecuteNPCCommand(CommandSender sender) {
     return false;
   }
 
   @EventHandler
   public void onEnemyDeath(EntityDeathEvent e){
-    Player player = e.getEntity().getKiller();
+    LivingEntity enemy = e.getEntity();
+    Player player = enemy.getKiller();
     if (playerScoreList.isEmpty() || Objects.isNull(player)) {
       return;
     }
-    for(PlayerScore playerScore : playerScoreList){
-      if(playerScore.getPlayerName().equals(player.getName())){
-        playerScore.setScore(playerScore.getScore() + 10);
+    for (PlayerScore playerScore : playerScoreList){
+      if (playerScore.getPlayerName().equals(player.getName())){
+        int point = switch (enemy.getType()) {
+          case ZOMBIE -> 10;
+          case SPIDER -> 5;
+          case SKELETON, WITCH -> 20;
+          default -> 0;
+        };
+
+        playerScore.setScore(playerScore.getScore() + point);
         player.sendMessage("敵を倒した！現在のスコアは" + playerScore.getScore() + "点！");
       }
     }
@@ -140,8 +156,8 @@ public class EnemyDownCommand implements CommandExecutor, Listener {
    * 敵
    */
   private EntityType getEnemy() {
-    List<EntityType> enemyList = List.of(EntityType.ZOMBIE,EntityType.SKELETON,EntityType.SPIDER);
-    return enemyList.get(new SplittableRandom().nextInt(3));
+    List<EntityType> enemyList = List.of(EntityType.ZOMBIE,EntityType.SKELETON,EntityType.SPIDER,EntityType.WITCH);
+    return enemyList.get(new SplittableRandom().nextInt(enemyList.size()));
   }
 
 }
