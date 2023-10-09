@@ -1,5 +1,12 @@
 package plugin.enemydown.command;
 
+import java.sql.Connection;
+import java.sql.DriverManager;
+import java.sql.ResultSet;
+import java.sql.SQLException;
+import java.sql.Statement;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
@@ -35,8 +42,9 @@ public class EnemyDownCommand extends BaseCommand implements Listener {
   public static final String EASY = "easy";
   public static final String NORMAL = "normal";
   public static final String HARD = "hard";
-
   public static final String NONE = "none";
+  public static final String LIST = "list";
+
 
 
   private Main main;
@@ -49,11 +57,35 @@ public class EnemyDownCommand extends BaseCommand implements Listener {
 
   @Override
   public boolean onExecutePlayerCommand(Player player, Command command, String label, String[] args) {
-    PlayerScore nowPlayerScore = getPlayerScore(player);
+    if (args.length == 1 && LIST.equals(args[0]) ) {
+      try (Connection con = DriverManager.getConnection(
+          "jdbc:mysql://localhost:3306/spigot_server",
+          "root",
+          "mal03per");
+          Statement statement = con.createStatement();
+          ResultSet resultSet = statement.executeQuery("select * from player_score")){
+        while(resultSet.next()){
+          int id = resultSet.getInt("id");
+          String name = resultSet.getString("player_name");
+          int score = resultSet.getInt("score");
+          String difficulty = resultSet.getString("difficulty");
+
+          DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
+          LocalDateTime date = LocalDateTime.parse(resultSet.getString("registered_at"), formatter);
+          player.sendMessage(id + " | " + name + " | " + score + " | " + difficulty + " | " + date.format(formatter));
+        }
+      } catch (SQLException e) {
+        e.printStackTrace();
+      }
+      return false;
+    }
+
     String difficulty = getDifficulty(player, args);
     if (NONE.equals(difficulty)){
       return false;
     }
+
+    PlayerScore nowPlayerScore = getPlayerScore(player);
 
     initPlayerStatus(player);
 
