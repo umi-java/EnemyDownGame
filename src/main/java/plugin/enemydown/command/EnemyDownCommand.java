@@ -209,6 +209,20 @@ public class EnemyDownCommand extends BaseCommand implements Listener {
             nowPlayerScore.getPlayerName() + " 合計 " + nowPlayerScore.getScore() + "点！",
             10,40,10);
 
+        try (Connection con = DriverManager.getConnection(
+            "jdbc:mysql://localhost:3306/spigot_server",
+            "root",
+            "mal03per");
+            Statement statement = con.createStatement()) {
+            statement.executeUpdate(
+                "insert player_score(player_name, score, difficulty, registered_at)"
+                + "values('" + nowPlayerScore.getPlayerName() + "'," + nowPlayerScore.getScore() + ", '"
+                    + difficulty + "', now());" );
+
+        } catch (SQLException e) {
+          e.printStackTrace();
+        }
+
         spawnEntityList.forEach(Entity::remove);
         spawnEntityList.clear();
 
